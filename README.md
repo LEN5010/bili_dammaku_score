@@ -42,7 +42,8 @@ bili_dammaku_score/
 
 ### 运行环境建议
 
-- macOS
+- macOS / Windows 均可运行
+- Linux 理论可运行，但当前项目主要在 macOS 环境下完成开发与验证
 - Python 3.13 或 3.14
 - 已安装 `pip`
 
@@ -72,13 +73,36 @@ bili_dammaku_score/
 python3 -m venv venv
 source venv/bin/activate
 pip install --upgrade pip
-pip install bilibili-api-python aiohttp PySide6
+pip install -r requirements.txt
 ```
 
 安装完成后，建议先验证核心依赖是否正常：
 
 ```bash
 python -c "import bilibili_api; import PySide6; print('ok')"
+```
+
+### Windows 环境安装示例
+
+如果你在 Windows PowerShell 中安装，可参考：
+
+```powershell
+py -m venv venv
+.\venv\Scripts\Activate.ps1
+python -m pip install --upgrade pip
+pip install -r requirements.txt
+```
+
+启动 GUI：
+
+```powershell
+python .\scripts\gui_app.py
+```
+
+启动 CLI：
+
+```powershell
+python .\scripts\score_cli.py 直播间号
 ```
 
 ### 可选调试命令
