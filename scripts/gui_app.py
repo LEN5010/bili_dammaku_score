@@ -389,7 +389,7 @@ class HeatVoteWindow(QMainWindow):
         self.debug = debug
         self.listener_thread: LiveListenerThread | None = None
         self.session = HeatVoteSession()
-        self.default_duration = 30
+        self.default_duration = 180
         self.remaining_seconds = self.default_duration
 
         self.countdown_timer = QTimer(self)
@@ -531,7 +531,7 @@ class HeatVoteWindow(QMainWindow):
         self.connect_button = QPushButton("连接")
         self.disconnect_button = QPushButton("断开")
         self.disconnect_button.setObjectName("GhostButton")
-        self.start_button = QPushButton("开始 30 秒投票")
+        self.start_button = QPushButton("开始 3 分钟投票")
         self.stop_button = QPushButton("手动结算")
         self.stop_button.setObjectName("GhostButton")
 
@@ -773,7 +773,7 @@ class HeatVoteWindow(QMainWindow):
         self.countdown_timer.start()
         self.set_vote_active(True)
         self.update_snapshot(self.session.snapshot())
-        self.append_log("开始 30 秒热度投票")
+        self.append_log("开始 3 分钟热度投票")
 
     def stop_vote(self, show_dialog: bool = True, reason: str | None = None) -> None:
         if not self.session.started_at:
@@ -806,7 +806,7 @@ class HeatVoteWindow(QMainWindow):
         self.remaining_seconds -= 1
         self.countdown_value.set_immediate_value(self.remaining_seconds)
         if self.remaining_seconds <= 0:
-            self.stop_vote(show_dialog=True, reason="30 秒到，自动结算")
+            self.stop_vote(show_dialog=True, reason="3 分钟到，自动结算")
 
     def _pulse_lane(self, lane: QFrame, color: str) -> None:
         effect = QGraphicsDropShadowEffect(self)
