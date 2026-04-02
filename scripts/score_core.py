@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 from datetime import datetime
+import re
 
 from bili_live_utils import DanmakuMessage, parse_score
 
@@ -133,4 +134,131 @@ class ScoreSession:
             lines.append(
                 f"  {index}. score={entry.score} user={entry.uname} {identity} at={entry.accepted_at}"
             )
+        return "\n".join(lines)
+
+
+POWER_PATTERN = re.compile(r"1+")
+TRASH_PATTERN = re.compile(r"0+")
+
+
+@dataclass(slots=True)
+class HeatVoteHit:
+    side: str
+    uname: str
+    uid: int | None
+    user_hash: str | None
+    raw_text: str
+    accepted_at: str
+
+
+class HeatVoteSession:
+    def __init__(self) -> None:
+        self.reset()
+
+    def reset(self) -> None:
+        self.active = False
+        self.started_at: str | None = None
+        self.stopped_at: str | None = None
+        self.power_votes = 0
+        self.trash_votes = 0
+        self.total_messages = 0
+        self.valid_messages = 0
+        self.invalid_messages = 0
+        self.recent_hits: list[HeatVoteHit] = []
+
+    def start(self) -> None:
+        self.active = True
+        self.started_at = now_text()
+        self.stopped_at = None
+        self.power_votes = 0
+        self.trash_votes = 0
+        self.total_messages = 0
+        self.valid_messages = 0
+        self.invalid_messages = 0
+        self.recent_hits.clear()
+
+    def stop(self) -> None:
+        self.active = False
+        self.stopped_at = now_text()
+
+    def accept_message(self, message: DanmakuMessage) -> tuple[str, HeatVoteHit | None]:
+        if not self.active:
+            return ("inactive", None)
+
+        self.total_messages += 1
+        normalized = message.text.strip()
+
+        if POWER_PATTERN.fullmatch(normalized):
+            hit = HeatVoteHit(
+                side="power",
+                uname=message.uname or "未知用户",
+                uid=message.uid,
+                user_hash=message.user_hash,
+                raw_text=normalized,
+                accepted_at=now_text(),
+            )
+            self.power_votes += 1
+            self.valid_messages += 1
+            self.recent_hits.insert(0, hit)
+            del self.recent_hits[80:]
+            return ("accepted", hit)
+
+        if TRASH_PATTERN.fullmatch(normalized):
+            hit = HeatVoteHit(
+                side="trash",
+                uname=message.uname or "未知用户",
+                uid=message.uid,
+                user_hash=message.user_hash,
+                raw_text=normalized,
+                accepted_at=now_text(),
+            )
+            self.trash_votes += 1
+            self.valid_messages += 1
+            self.recent_hits.insert(0, hit)
+            del self.recent_hits[80:]
+            return ("accepted", hit)
+
+        self.invalid_messages += 1
+        return ("invalid", None)
+
+    def snapshot(self) -> dict:
+        total_votes = self.power_votes + self.trash_votes
+        if self.power_votes > self.trash_votes:
+            leader = "power"
+        elif self.trash_votes > self.power_votes:
+            leader = "trash"
+        else:
+            leader = "draw"
+
+        return {
+            "active": self.active,
+            "started_at": self.started_at,
+            "stopped_at": self.stopped_at,
+            "power_votes": self.power_votes,
+            "trash_votes": self.trash_votes,
+            "total_votes": total_votes,
+            "total_messages": self.total_messages,
+            "valid_messages": self.valid_messages,
+            "invalid_messages": self.invalid_messages,
+            "leader": leader,
+            "diff": abs(self.power_votes - self.trash_votes),
+        }
+
+    def result_title(self) -> str:
+        if self.power_votes > self.trash_votes:
+            return "本轮结果：实力票更多"
+        if self.trash_votes > self.power_votes:
+            return "本轮结果：抽象票更多"
+        return "本轮结果：两边打平"
+
+    def result_summary(self) -> str:
+        snapshot = self.snapshot()
+        lines = [
+            self.result_title(),
+            f"实力票：{self.power_votes}",
+            f"抽象票：{self.trash_votes}",
+            f"总有效互动：{snapshot['total_votes']}",
+            f"收到弹幕：{self.total_messages}",
+            f"无效弹幕：{self.invalid_messages}",
+        ]
         return "\n".join(lines)
