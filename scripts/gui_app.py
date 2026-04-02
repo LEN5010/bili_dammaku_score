@@ -4,7 +4,7 @@ import sys
 from pathlib import Path
 
 from PySide6.QtCore import QEasingCurve, QRectF, QThread, Qt, QTimer, Signal, QVariantAnimation
-from PySide6.QtGui import QColor, QFont, QPainter, QPainterPath
+from PySide6.QtGui import QColor, QFont, QFontDatabase, QPainter, QPainterPath
 from PySide6.QtWidgets import (
     QApplication,
     QDialog,
@@ -36,6 +36,34 @@ from bili_live_utils import (
     save_credential,
 )
 from score_core import HeatVoteHit, HeatVoteSession, ScoreEntry, ScoreSession, now_text
+
+APP_FONT_CSS = '"Avenir Next", "PingFang SC", sans-serif'
+APP_FONT_POINT_SIZE = 13
+DEFAULT_BUNDLED_FONT = Path("font/SourceHanSansSC-Regular.otf")
+
+
+def resolve_runtime_path(relative_path: Path) -> Path:
+    if getattr(sys, "frozen", False) and hasattr(sys, "_MEIPASS"):
+        return Path(sys._MEIPASS) / relative_path
+    return Path(__file__).resolve().parent.parent / relative_path
+
+
+def setup_application_font(app: QApplication) -> str | None:
+    global APP_FONT_CSS
+
+    font_path = resolve_runtime_path(DEFAULT_BUNDLED_FONT)
+    if font_path.exists():
+        font_id = QFontDatabase.addApplicationFont(str(font_path))
+        if font_id != -1:
+            families = QFontDatabase.applicationFontFamilies(font_id)
+            if families:
+                family = families[0]
+                APP_FONT_CSS = f'"{family}", "Avenir Next", "PingFang SC", sans-serif'
+                app.setFont(QFont(family, APP_FONT_POINT_SIZE))
+                return family
+
+    app.setFont(QFont("Avenir Next", APP_FONT_POINT_SIZE))
+    return None
 
 
 class QrLoginThread(QThread):
@@ -375,7 +403,7 @@ class HeatVoteWindow(QMainWindow):
             """
             QWidget {
               color: #1F2A37;
-              font-family: "Avenir Next", "PingFang SC", sans-serif;
+              font-family: __APP_FONT_CSS__;
               font-size: 14px;
             }
             QMainWindow {
@@ -470,6 +498,7 @@ class HeatVoteWindow(QMainWindow):
               color: #1F2A37;
             }
             """
+            .replace("__APP_FONT_CSS__", APP_FONT_CSS)
         )
 
         central = QWidget()
@@ -1166,7 +1195,7 @@ class MainWindow(QMainWindow):
             """
             QWidget {
               color: #1F2A37;
-              font-family: "Avenir Next", "PingFang SC", sans-serif;
+              font-family: __APP_FONT_CSS__;
               font-size: 14px;
             }
             QMainWindow {
@@ -1264,6 +1293,7 @@ class MainWindow(QMainWindow):
               padding: 8px;
             }
             """
+            .replace("__APP_FONT_CSS__", APP_FONT_CSS)
         )
 
     def show_login_page(self) -> None:
@@ -1466,7 +1496,7 @@ def main() -> int:
     args = parse_args()
     app = QApplication(sys.argv)
     app.setApplicationName("Bili Live Scoreboard")
-    app.setFont(QFont("Avenir Next", 13))
+    setup_application_font(app)
 
     window = MainWindow(
         credential_file=args.credential_file,
